@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>拼豆颜色 iOS 预览</title>
+    <style>
+      :root {
+        --bg: #eef3fb;
+        --panel: rgba(255, 255, 255, 0.94);
+        --line: rgba(20, 28, 45, 0.08);
+        --text: #10151f;
+        --muted: #7c8798;
+        --indigo: #6d5efc;
+        --green: #2cb56f;
+        --orange: #f4a340;
+        --shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
+        --radius: 18px;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(109, 94, 252, 0.08), transparent 26%),
+          radial-gradient(circle at top right, rgba(44, 181, 111, 0.08), transparent 28%),
+          linear-gradient(180deg, #f8fbff 0%, #eaf2fb 100%);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      }
+
+      .page {
+        min-height: 100%;
+        display: grid;
+        place-items: center;
+        padding: 28px 16px;
+      }
+
+      .frame {
+        width: min(430px, 100%);
+        aspect-ratio: 390 / 844;
+        background: #fff;
+        border-radius: 34px;
+        overflow: hidden;
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        position: relative;
+      }
+
+      .status {
+        height: 56px;
+        padding: 0 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: 700;
+        font-size: 26px;
+      }
+
+      .status-icons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .status-pill {
+        width: 26px;
+        height: 14px;
+        border: 2px solid #111;
+        border-radius: 4px;
+        position: relative;
+      }
+
+      .status-pill::after {
+        content: "";
+        position: absolute;
+        right: -4px;
+        top: 3px;
+        width: 2px;
+        height: 8px;
+        background: #111;
+        border-radius: 1px;
+      }
+
+      .app {
+        height: calc(100% - 56px);
+        background: linear-gradient(180deg, #ffffff 0%, #e8f1fd 12%, #e8f1fd 100%);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .top {
+        padding: 12px 18px 14px;
+        border-bottom: 1px solid rgba(17, 24, 39, 0.1);
+        background: rgba(255, 255, 255, 0.84);
+        backdrop-filter: blur(14px);
+      }
+
+      .title-row {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 31px;
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+
+      .top-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .btn {
+        border: 0;
+        background: rgba(109, 94, 252, 0.12);
+        color: #4e40d8;
+        border: 2px solid rgba(109, 94, 252, 0.95);
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.2);
+      }
+
+      .summary {
+        margin-top: 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .summary-label {
+        font-size: 19px;
+        font-weight: 800;
+      }
+
+      .summary-chip {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(17, 24, 39, 0.08);
+        border-radius: 999px;
+        padding: 10px 16px;
+        font-size: 15px;
+        font-weight: 700;
+        box-shadow: 0 1px 0 rgba(255,255,255,.8), inset 0 0 0 1px rgba(0,0,0,.03);
+      }
+
+      .summary-chip .muted {
+        color: var(--muted);
+        font-weight: 500;
+      }
+
+      .content {
+        flex: 1;
+        overflow: auto;
+        padding: 14px 18px 16px;
+      }
+
+      .search {
+        width: 100%;
+        border: 1px solid rgba(17, 24, 39, 0.08);
+        background: rgba(255,255,255,.86);
+        border-radius: 18px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 16px;
+        color: var(--muted);
+        box-shadow: 0 1px 0 rgba(255,255,255,.8), inset 0 0 0 1px rgba(0,0,0,.02);
+      }
+
+      .chip-row, .chip-row-2 {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+      }
+      .chip-row::-webkit-scrollbar, .chip-row-2::-webkit-scrollbar { display: none; }
+
+      .chip {
+        flex: 0 0 auto;
+        height: 40px;
+        border-radius: 999px;
+        border: 1px solid rgba(17, 24, 39, 0.08);
+        background: #fff;
+        padding: 0 16px;
+        font-size: 14px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .chip.active {
+        background: var(--indigo);
+        color: #fff;
+        border-color: var(--indigo);
+      }
+
+      .filters {
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: space-between;
+      }
+
+      .mini-chip {
+        height: 36px;
+        border-radius: 999px;
+        border: 1px solid rgba(17, 24, 39, 0.08);
+        background: #fff;
+        padding: 0 14px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .view-toggle {
+        display: flex;
+        border-radius: 999px;
+        background: rgba(255,255,255,.88);
+        border: 1px solid rgba(17,24,39,.08);
+        padding: 4px;
+        gap: 4px;
+      }
+
+      .view-toggle button {
+        width: 36px;
+        height: 36px;
+        border: 0;
+        background: transparent;
+        border-radius: 999px;
+        color: #aaa;
+      }
+      .view-toggle button.active {
+        background: var(--indigo);
+        color: #fff;
+      }
+
+      .section-head {
+        margin-top: 18px;
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+      }
+
+      .section-head h2 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.1;
+      }
+
+      .section-head .meta {
+        color: #8b93a3;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .card {
+        border-radius: 20px;
+        background: rgba(255,255,255,.96);
+        border: 1px solid rgba(17,24,39,.08);
+        box-shadow: var(--shadow);
+        padding: 14px;
+        min-height: 166px;
+      }
+
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .code {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+
+      .tag {
+        font-size: 12px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(44, 181, 111, 0.4);
+        color: var(--green);
+        background: rgba(44, 181, 111, 0.08);
+        font-weight: 700;
+      }
+
+      .menu-dot {
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        border: 1px solid rgba(17,24,39,.08);
+        display: grid;
+        place-items: center;
+        color: #b7bdc8;
+        font-size: 22px;
+      }
+
+      .swatch {
+        margin-top: 14px;
+        height: 84px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        font-size: 40px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: rgba(17, 24, 39, 0.82);
+        box-shadow: inset 0 0 0 4px rgba(255,255,255,.18);
+      }
+
+      .swatch small {
+        font-size: 16px;
+        font-weight: 700;
+        opacity: 0.5;
+        margin-left: 6px;
+      }
+
+      .nav {
+        height: 78px;
+        background: rgba(255,255,255,.96);
+        border-top: 1px solid rgba(17,24,39,.08);
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        align-items: center;
+        padding: 0 8px 8px;
+      }
+
+      .nav-item {
+        display: grid;
+        justify-items: center;
+        gap: 4px;
+        color: #9aa2af;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .nav-item.active {
+        color: var(--indigo);
+        position: relative;
+      }
+
+      .nav-item.active::before {
+        content: "";
+        position: absolute;
+        top: -8px;
+        width: 74px;
+        height: 56px;
+        border-radius: 999px;
+        background: rgba(109, 94, 252, 0.12);
+        z-index: 0;
+      }
+
+      .nav-item span, .nav-item strong {
+        position: relative;
+        z-index: 1;
+      }
+
+      .icon {
+        font-size: 24px;
+        line-height: 1;
+      }
+
+      .drawer {
+        position: absolute;
+        inset: auto 0 0 0;
+        background: rgba(255,255,255,.98);
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+        box-shadow: 0 -18px 50px rgba(15,23,42,.12);
+        padding: 14px 16px 18px;
+        transform: translateY(72%);
+      }
+
+      .drawer .handle {
+        width: 44px;
+        height: 5px;
+        border-radius: 999px;
+        background: rgba(17,24,39,.12);
+        margin: 0 auto 14px;
+      }
+
+      .drawer-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .drawer-head h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .drawer-grid {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .input {
+        height: 46px;
+        border-radius: 14px;
+        border: 1px solid rgba(17,24,39,.08);
+        background: #f9fbff;
+        padding: 0 14px;
+        font-weight: 700;
+      }
+
+      .drawer-note {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      @media (max-width: 420px) {
+        .frame {
+          width: 100%;
+          aspect-ratio: 390 / 844;
+          border-radius: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="frame">
+        <div class="status">
+          <div>22:33</div>
+          <div class="status-icons">
+            <span>▂▃▆█</span>
+            <span>5G</span>
+            <span style="display:flex;align-items:center;gap:4px;">
+              <span style="color:#25b45b;">74</span>
+              <span class="status-pill"></span>
+            </span>
+          </div>
+        </div>
+        <div class="app">
+          <div class="top">
+            <div class="title-row">
+              <div>
+                <h1>我的豆仓</h1>
+              </div>
+              <div class="top-actions">
+                <div class="btn">⊖ 手动出库</div>
+                <div class="btn">⊕ 补豆入库</div>
+              </div>
+            </div>
+            <div class="summary">
+              <div class="summary-label">总库存</div>
+              <div class="summary-chip">219,943 <span class="muted">粒</span> · <strong>221</strong> <span class="muted">色号</span></div>
+            </div>
+          </div>
+
+          <div class="content">
+            <div class="search">⌕ <span>搜索色号</span></div>
+
+            <div style="height:12px"></div>
+            <div class="chip-row">
+              <div class="chip active">☷ 全部</div>
+              <div class="chip">A</div>
+              <div class="chip">B</div>
+              <div class="chip">C</div>
+              <div class="chip">D</div>
+              <div class="chip">E</div>
+              <div class="chip">F</div>
+              <div class="chip">G</div>
+              <div class="chip">H</div>
+              <div class="chip">M</div>
+            </div>
+
+            <div class="filters">
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <div class="mini-chip" style="background:var(--indigo);color:#fff;border-color:var(--indigo);">⇵ 默认</div>
+                <div class="mini-chip">由少到多</div>
+                <div class="mini-chip">由多到少</div>
+              </div>
+              <div class="view-toggle">
+                <button class="active">☰</button>
+                <button>▦</button>
+              </div>
+            </div>
+
+            <div class="section-head">
+              <h2>A 系列</h2>
+              <div class="meta">26 色号 · 25,948 粒 ˅</div>
+            </div>
+
+            <div class="grid">
+              <div class="card">
+                <div class="card-head">
+                  <div class="code">A1</div>
+                  <div class="tag">库存充足</div>
+                  <div class="menu-dot">…</div>
+                </div>
+                <div class="swatch" style="background:#fcf5c7;">1000 <small>粒</small></div>
+              </div>
+              <div class="card">
+                <div class="card-head">
+                  <div class="code">A2</div>
+                  <div class="tag">库存充足</div>
+                  <div class="menu-dot">…</div>
+                </div>
+                <div class="swatch" style="background:#fbf8bf;">1000 <small>粒</small></div>
+              </div>
+              <div class="card">
+                <div class="card-head">
+                  <div class="code">A3</div>
+                  <div class="tag">库存充足</div>
+                  <div class="menu-dot">…</div>
+                </div>
+                <div class="swatch" style="background:#f9f97a;">1000 <small>粒</small></div>
+              </div>
+              <div class="card">
+                <div class="card-head">
+                  <div class="code">A4</div>
+                  <div class="tag">库存充足</div>
+                  <div class="menu-dot">…</div>
+                </div>
+                <div class="swatch" style="background:#f5e94c;">976 <small>粒</small></div>
+              </div>
+              <div class="card">
+                <div class="card-head">
+                  <div class="code">A5</div>
+                  <div class="tag">库存充足</div>
+                  <div class="menu-dot">…</div>
+                </div>
+                <div class="swatch" style="background:#ffd735;">1000 <small>粒</small></div>
+              </div>
+              <div class="card">
+                <div class="card-head">
+                  <div class="code">A6</div>
+                  <div class="tag">库存充足</div>
+                  <div class="menu-dot">…</div>
+                </div>
+                <div class="swatch" style="background:#ffb14a;">1000 <small>粒</small></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="nav">
+            <div class="nav-item active"><span class="icon">⬚</span><strong>豆仓</strong></div>
+            <div class="nav-item"><span class="icon">◫</span><strong>图纸册</strong></div>
+            <div class="nav-item"><span class="icon">✦</span><strong>灵感库</strong></div>
+            <div class="nav-item"><span class="icon">↺</span><strong>记录</strong></div>
+            <div class="nav-item"><span class="icon">◯</span><strong>我的</strong></div>
+          </div>
+
+          <div class="drawer">
+            <div class="handle"></div>
+            <div class="drawer-head">
+              <h3>A1 颜色详情</h3>
+              <div class="tag">库存充足</div>
+            </div>
+            <div class="drawer-grid">
+              <div class="input">库存 1000 粒</div>
+              <div class="input">HEX #FAF4C8</div>
+              <div class="input">系列 A</div>
+              <div class="input">色号 A1</div>
+            </div>
+            <div class="drawer-note">这个预览页是为了在 Xcode 暂时不能用的时候，先把 App 的视觉和层级看清楚。后面如果你点头，我可以再给你加一个可切换深浅背景、卡片密度和弹层状态的版本。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
