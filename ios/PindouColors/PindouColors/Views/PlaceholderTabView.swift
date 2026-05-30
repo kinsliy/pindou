@@ -34,7 +34,7 @@ struct PlaceholderTabView: View {
                 // 提示信息
                 Text(message)
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.black.opacity(0.65))  /* 加深，确保在白底上可读 */
                     .multilineTextAlignment(.center)  // 居中对齐
                     .padding(.horizontal)
             }

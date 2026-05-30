@@ -106,6 +106,7 @@ struct ColorWarehouseView: View {
                     .padding(.bottom, 28)     // 底部内边距
                 }
                 .scrollBounceBehavior(.basedOnSize)  // 滚动回弹行为
+            .scrollDismissesKeyboard(.immediately)  /* 滚动时收起键盘 */
             }
             // 隐藏导航栏 - 因为我们是自定义头部
             .navigationBarTitleDisplayMode(.inline)
@@ -179,9 +180,10 @@ struct ColorWarehouseView: View {
             VStack(alignment: .leading, spacing: 4) {  // VStack = 垂直布局
                 Text("我的豆仓")
                     .font(.system(size: 30, weight: .black))  // 字体大小和粗细
+                    .foregroundStyle(.black.opacity(0.9))  // 黑色，确保在浅色背景上清晰可见
                 Text("颜色、库存和导入备份")
                     .font(.footnote)   // 小字体
-                    .foregroundStyle(.secondary)  // 次要颜色
+                    .foregroundStyle(.black.opacity(0.7))  /* 加深，确保在白底上可读 */  // 次要颜色，更深一点
             }
             Spacer()  // 弹性空间，类似 CSS 的 flex: 1
 
@@ -203,13 +205,15 @@ struct ColorWarehouseView: View {
         HStack(spacing: 12) {
             Text("总库存")
                 .font(.headline)
+                .foregroundStyle(.black.opacity(0.85))  // 深色文字确保可见
             Text("\(totalStock.formatted()) 粒 · \(filteredColors.count) 色号")
                 .font(.headline)
+                .foregroundStyle(.black.opacity(0.85))  // 深色文字确保在白色背景上可见
                 .padding(.horizontal, 18)   // 水平内边距
                 .padding(.vertical, 10)     // 垂直内边距
                 .background(.white)         // 白色背景
                 .clipShape(Capsule())       // 胶囊形状裁剪
-                .overlay(Capsule().stroke(.black.opacity(0.08)))  // 边框
+                .overlay(Capsule().stroke(.black.opacity(0.2)))  /* 加深边框，使白色胶囊可见 */
             Spacer()
         }
     }
@@ -219,15 +223,24 @@ struct ColorWarehouseView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.title3)              // 系统图标
-                .foregroundStyle(.secondary)
-            TextField("搜索色号", text: $searchText)
+                .foregroundStyle(.black.opacity(0.65))  /* 加深，确保可见 */  // 深色图标确保可见
+            TextField("搜索色号", text: $searchText, prompt: Text("搜索色号").foregroundStyle(.black.opacity(0.6))  /* 加深，确保可见 */)
                 .textInputAutocapitalization(.characters)  // 自动大写
                 .autocorrectionDisabled()   // 禁用自动纠错
+                .foregroundStyle(.black.opacity(0.9))  // 深色输入文字确保可见
         }
         .padding(16)
-        .background(.white.opacity(0.88))  // 半透明白色背景
+        .background(.white.opacity(0.95))  // 更不透明的白色背景
         .clipShape(RoundedRectangle(cornerRadius: 8))  // 圆角矩形
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.25)))  /* 加深边框 */
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完成") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
+                }
+            }  /* 键盘上方"完成"按钮，点击收起键盘 */
     }
 
     // 系列筛选标签横向滚动区域
@@ -284,6 +297,7 @@ struct ColorWarehouseView: View {
             } label: {
                 Image(systemName: "ellipsis.circle")
                     .font(.title3)
+                    .foregroundStyle(.primary)
             }
             .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
@@ -310,10 +324,11 @@ struct ColorWarehouseView: View {
                     HStack {
                         Text("\(group.series) 系列")
                             .font(.title2.bold())
+                            .foregroundStyle(.primary)
                         Spacer()
                         Text("\(group.items.count) 色号 · \(group.items.reduce(0) { $0 + $1.stockCount }.formatted()) 粒")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.black.opacity(0.65))  /* 加深，确保在白底上可读 */
                     }
 
                     // 根据视图模式显示网格或列表
@@ -374,10 +389,10 @@ struct ColorWarehouseView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 11)
-            .background(isActive ? Color.indigo : Color.white)
-            .foregroundStyle(isActive ? .white : .primary)
+            .background(isActive ? Color.indigo : .white)  // 激活状态紫色，非激活白色
+            .foregroundStyle(isActive ? .white : .black.opacity(0.85))  // 非激活状态深色文字确保可见
             .clipShape(Capsule())
-            .overlay(Capsule().stroke(.black.opacity(0.07)))
+            .overlay(Capsule().stroke(.black.opacity(0.25)))  /* 加深边框，使白色按钮可见 */
         }
         .buttonStyle(.plain)
     }
@@ -508,7 +523,7 @@ struct PillButtonStyle: ButtonStyle {
             .background(active ? Color.indigo : Color.white)
             .foregroundStyle(active ? .white : .primary)
             .clipShape(Capsule())
-            .overlay(Capsule().stroke(.black.opacity(0.07)))
+            .overlay(Capsule().stroke(.black.opacity(0.2)))  /* 加深边框，使白色按钮可见 */
             // 按下时缩小，类似于 CSS 的 :active transform
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
     }

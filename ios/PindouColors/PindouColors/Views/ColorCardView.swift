@@ -48,20 +48,21 @@ struct ColorCardView: View {
                 // 右上角菜单按钮
                 Button(action: onTap) {
                     Image(systemName: "ellipsis")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.black.opacity(0.65))  /* 加深，确保在白底上可读 */
                         .frame(width: 30, height: 30)
                         .overlay(Circle().stroke(.black.opacity(0.08)))
                 }
             }
 
             // 中间区域：库存数量显示
-            HStack(alignment: .lastTextBaseline, spacing: 5) {
-                Text(color.stockCount.formatted())
+            HStack(spacing: 4) {
+                Text("\(color.stockCount)")
                     .font(.system(
-                        size: isCompact ? 34 : 40,  // 紧凑模式字体小一些
+                        size: isCompact ? 32 : 38,  // 紧凑模式字体小一些
                         weight: .black
                     ))
                     .foregroundStyle(readableTextColor)  // 根据背景色自动调整文字颜色
+                    .monospacedDigit()  // 等宽数字，防止换行
 
                 Text("粒")
                     .font(.headline)
@@ -83,10 +84,10 @@ struct ColorCardView: View {
                     } label: {
                         Label("减少", systemImage: "minus.circle.fill")
                             .font(.headline)
+                            .foregroundStyle(.red)
                     }
                     .buttonStyle(.bordered)      // 边框样式
                     .buttonBorderShape(.capsule) // 胶囊形状
-                    .tint(.red)                  // 红色强调
 
                     Spacer()
 
