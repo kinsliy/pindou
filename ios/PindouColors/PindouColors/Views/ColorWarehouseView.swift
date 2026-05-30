@@ -128,8 +128,6 @@ struct ColorWarehouseView: View {
                 Text("我的豆仓")
                     .font(.system(size: 30, weight: .black))
                     .foregroundStyle(.black.opacity(0.9))
-                    .font(.footnote)
-                    .foregroundStyle(.black.opacity(0.7))
             }
             Spacer()
 

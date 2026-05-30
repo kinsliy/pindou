@@ -109,6 +109,10 @@ struct ColorEditorView: View {
                     let filtered = newValue.filter(\.isNumber)
                     guard filtered != newValue else { return }
                     stockInput = filtered
+                    // 同步更新 stockCount，确保 save() 使用正确的值
+                    if let value = Int(filtered) {
+                        stockCount = max(0, min(999_999, value))
+                    }
                 }
             Text("粒")
                 .foregroundStyle(.secondary)
