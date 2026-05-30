@@ -46,6 +46,7 @@ struct ColorWarehouseView: View {
     // ============================================
 
     @State private var searchText = ""           // 搜索关键词
+    @FocusState private var isSearchFocused: Bool  // 搜索框焦点状态，用于控制键盘
     @State private var selectedSeries = "全部"    // 当前选中的系列
     @State private var sortMode: ColorSortMode = .default  // 排序模式
     @State private var showsGrid = true          // 是否显示网格视图（vs 列表视图）
@@ -224,7 +225,8 @@ struct ColorWarehouseView: View {
             Image(systemName: "magnifyingglass")
                 .font(.title3)              // 系统图标
                 .foregroundStyle(.black.opacity(0.65))  /* 加深，确保可见 */  // 深色图标确保可见
-            TextField("搜索色号", text: $searchText, prompt: Text("搜索色号").foregroundStyle(.black.opacity(0.6))  /* 加深，确保可见 */)
+            TextField("搜索色号", text: $searchText, prompt: Text("搜索色号").foregroundStyle(.black.opacity(0.6)))
+                .focused($isSearchFocused)
                 .textInputAutocapitalization(.characters)  // 自动大写
                 .autocorrectionDisabled()   // 禁用自动纠错
                 .foregroundStyle(.black.opacity(0.9))  // 深色输入文字确保可见
@@ -233,6 +235,8 @@ struct ColorWarehouseView: View {
         .background(.white.opacity(0.95))  // 更不透明的白色背景
         .clipShape(RoundedRectangle(cornerRadius: 8))  // 圆角矩形
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.25)))  /* 加深边框 */
+            .contentShape(Rectangle())  /* 扩大点击区域到整个搜索框 */
+            .onTapGesture { isSearchFocused = true }  /* 点击搜索框任意位置聚焦输入框 */
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -278,13 +282,20 @@ struct ColorWarehouseView: View {
             }
             .buttonStyle(PillButtonStyle(active: true))
 
-            // 补齐 291 色按钮
+            // 补齐 291 色按钮 - 纯文字无图标
             Button {
                 Task { await seedMissingDefaultColors(showAlert: true) }
             } label: {
-                Label(isSyncing ? "准备中" : "补齐 291 色", systemImage: "square.grid.3x3")
+                Text(isSyncing ? "准备中" : "补齐 291 色")
+                    .font(.headline)
+                    .foregroundStyle(.indigo)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 13)  /* 44pt 点击目标最小值 */
+                    .background(.white)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(.indigo.opacity(0.5)))
             }
-            .buttonStyle(PillButtonStyle(active: false))
+            .buttonStyle(.plain)
             .disabled(isSyncing)
 
             Spacer()
@@ -320,11 +331,11 @@ struct ColorWarehouseView: View {
             // 按系列分组展示
             ForEach(groupedSeries, id: \.series) { group in
                 VStack(alignment: .leading, spacing: 12) {
-                    // 系列标题
+                    // 系列标题 - 使用 indigo 主题色使其醒目
                     HStack {
                         Text("\(group.series) 系列")
                             .font(.title2.bold())
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.indigo)  /* 使用主题色，不再用白字 */
                         Spacer()
                         Text("\(group.items.count) 色号 · \(group.items.reduce(0) { $0 + $1.stockCount }.formatted()) 粒")
                             .font(.subheadline)
@@ -389,7 +400,7 @@ struct ColorWarehouseView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 11)
-            .background(isActive ? Color.indigo : .white)  // 激活状态紫色，非激活白色
+            .background(isActive ? Color.indigo : .black.opacity(0.04))  /* 非激活浅灰背景，避免在白底上消失 */
             .foregroundStyle(isActive ? .white : .black.opacity(0.85))  // 非激活状态深色文字确保可见
             .clipShape(Capsule())
             .overlay(Capsule().stroke(.black.opacity(0.25)))  /* 加深边框，使白色按钮可见 */
@@ -519,8 +530,8 @@ struct PillButtonStyle: ButtonStyle {
         configuration.label
             .font(.headline)
             .padding(.horizontal, 16)
-            .padding(.vertical, 11)
-            .background(active ? Color.indigo : Color.white)
+            .padding(.vertical, 13)  /* 44pt 点击目标最小值 */
+            .background(active ? Color.indigo : .black.opacity(0.04))  /* 非激活浅灰背景 */
             .foregroundStyle(active ? .white : .primary)
             .clipShape(Capsule())
             .overlay(Capsule().stroke(.black.opacity(0.2)))  /* 加深边框，使白色按钮可见 */

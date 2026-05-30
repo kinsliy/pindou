@@ -64,16 +64,18 @@ struct ColorEditorView: View {
             Form {
                 // 颜色预览区域
                 Section {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(hex: hex) ?? .gray)  // 实时预览颜色
-                        .frame(height: 96)               // 固定高度
-                        .overlay(alignment: .bottomLeading) {
-                            // 左下角显示 HEX 值
-                            Text(hex.uppercased())
-                                .font(.title2.bold())
-                                .padding()
-                                .foregroundStyle(.black.opacity(0.75))
-                        }
+                    // 实时颜色预览 - 自动选择黑/白文字
+                    ZStack(alignment: .bottomLeading) {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(hex: hex) ?? .gray)
+                            .frame(height: 96)
+
+                        // 左下角显示 HEX 值，自动适配颜色亮度
+                        Text(hex.uppercased())
+                            .font(.title2.bold())
+                            .padding()
+                            .foregroundStyle(readableTextColor)
+                    }
                 }
 
                 // 基础信息表单
@@ -192,6 +194,12 @@ struct ColorEditorView: View {
     }
 
     // 删除数据
+    // 计算颜色亮度，决定文字用黑色还是白色
+    private var readableTextColor: Color {
+        guard let rgb = RGB(hex: hex) else { return .primary }
+        return rgb.luminance > 0.56 ? .black.opacity(0.85) : .white
+    }
+
     private func delete() {
         if let color {
             // 从数据库删除，类似前端的 db.delete() 或 DELETE FROM
@@ -199,5 +207,29 @@ struct ColorEditorView: View {
             try? modelContext.save()
         }
         dismiss()
+    }
+}
+
+
+// ============================================
+// RGB - 颜色RGB结构体（用于计算颜色亮度）
+// ============================================
+
+private struct RGB {
+    let red: Double
+    let green: Double
+    let blue: Double
+
+    init?(hex: String) {
+        var value = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("#") { value.removeFirst() }
+        guard value.count == 6, let number = Int(value, radix: 16) else { return nil }
+        red = Double((number >> 16) & 0xFF) / 255
+        green = Double((number >> 8) & 0xFF) / 255
+        blue = Double(number & 0xFF) / 255
+    }
+
+    var luminance: Double {
+        0.299 * red + 0.587 * green + 0.114 * blue
     }
 }

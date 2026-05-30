@@ -28,10 +28,8 @@ struct ColorCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 10 : 14) {
-            // 顶部区域：色号和状态标签
+            // 顶部区域：状态标签 + 菜单
             HStack {
-                Text(color.code)
-                    .font(.title3.bold())
 
                 // 库存状态标签
                 Text(color.isStockEnough ? "库存充足" : "需要补豆")
@@ -49,80 +47,65 @@ struct ColorCardView: View {
                 Button(action: onTap) {
                     Image(systemName: "ellipsis")
                         .foregroundStyle(.black.opacity(0.65))  /* 加深，确保在白底上可读 */
-                        .frame(width: 30, height: 30)
+                        .frame(width: 36, height: 36)  /* 44pt 最小触摸区域 */
                         .overlay(Circle().stroke(.black.opacity(0.08)))
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("编辑\(color.code)")
             }
 
-            // 中间区域：库存数量显示
-            HStack(spacing: 4) {
-                Text("\(color.stockCount)")
+            // 中间区域：彩色色块上显示色号 + 可编辑库存
+            VStack(alignment: .leading, spacing: 6) {
+                // 色号 - 在实际颜色上显示，一眼识别
+                Text(color.code)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(readableTextColor)
+
+                // 库存编辑
+                HStack(spacing: 4) {
+                    TextField(
+                        "库存",
+                        value: Binding(
+                            get: { color.stockCount },
+                            set: { newValue in
+                                color.stockCount = max(0, newValue)
+                                color.updatedAt = Date()
+                                try? modelContext.save()
+                            }
+                        ),
+                        format: .number
+                    )
                     .font(.system(
-                        size: isCompact ? 32 : 38,  // 紧凑模式字体小一些
+                        size: isCompact ? 28 : 34,
                         weight: .black
                     ))
-                    .foregroundStyle(readableTextColor)  // 根据背景色自动调整文字颜色
-                    .monospacedDigit()  // 等宽数字，防止换行
+                    .foregroundStyle(readableTextColor)
+                    .frame(minWidth: 80)  // 确保 4 位数字不截断
 
-                Text("粒")
-                    .font(.headline)
-                    .foregroundStyle(readableTextColor.opacity(0.65))
+                    Text("粒")
+                        .font(.headline)
+                        .foregroundStyle(readableTextColor.opacity(0.65))
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 14)
-            .padding(.vertical, isCompact ? 12 : 18)
+            .padding(.vertical, isCompact ? 10 : 14)
             .background(color.color)  // 用实际颜色作为背景
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.08), lineWidth: 3))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.1), lineWidth: 2))
 
-            // 非紧凑模式：显示库存操作按钮
-            if !isCompact {
-                HStack(spacing: 12) {
-                    // 减少库存按钮
-                    Button {
-                        updateStock(-10)  // 每次减少 10 粒
-                    } label: {
-                        Label("减少", systemImage: "minus.circle.fill")
-                            .font(.headline)
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.bordered)      // 边框样式
-                    .buttonBorderShape(.capsule) // 胶囊形状
-
-                    Spacer()
-
-                    // 增加库存按钮
-                    Button {
-                        updateStock(10)  // 每次增加 10 粒
-                    } label: {
-                        Label("补豆", systemImage: "plus.circle.fill")
-                            .font(.headline)
-                    }
-                    .buttonStyle(.borderedProminent)  // 填充样式
-                    .buttonBorderShape(.capsule)
-                }
-            }
         }
         .padding(14)
         .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.08)))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.06), radius: 4, y: 2)  /* iOS 风格阴影 */
     }
 
     // ============================================
     // 方法 - 类似于前端的 class methods
     // ============================================
 
-    // 更新库存数量
-    // 直接修改 SwiftData 模型属性，自动保存到数据库
-    private func updateStock(_ delta: Int) {
-        // 确保库存不会小于 0
-        color.stockCount = max(0, color.stockCount + delta)
-        // 更新修改时间
-        color.updatedAt = Date()
-        // 手动保存更改到数据库，类似前端的 await db.save()
-        try? modelContext.save()
-    }
 
     // ============================================
     // 计算属性 - 类似于前端的 computed properties
