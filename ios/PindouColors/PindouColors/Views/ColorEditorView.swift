@@ -3,145 +3,86 @@ import SwiftUI
 
 // ============================================
 // ColorEditorView - 颜色编辑弹窗
-// 类似于前端 React/Vue 的 Modal/Dialog 组件
-// 功能：新建或编辑颜色信息
+// 功能：编辑色号和库存
+// 设计：
+//  - 去掉颜色预览区块（用户要求）
+//  - 基础信息只保留色号（用户要求：系列/名称/别名不在此编辑）
+//  - 库存：直接数字输入 + 快捷补豆按钮（+10/+100/+500 / -10/-100/-500）
+//  - 不使用 presentationDetents 避免 iOS 17 卡死 bug
+// 卡死已知：点击基础信息区域仍有卡死（iOS 17 + Form + sheet 组合 bug），待后续排查
 // ============================================
 
 struct ColorEditorView: View {
-    // ============================================
-    // 环境变量 - 类似于前端的 useContext / useLocation
-    // ============================================
-
     @Environment(\.dismiss) private var dismiss
-    // dismiss 是 SwiftUI 提供的关闭弹窗方法，类似前端的 onClose
-
     @Environment(\.modelContext) private var modelContext
-    // modelContext 用于数据操作，类似前端的数据库连接
 
-    // ============================================
-    // Props - 类似于前端的 props
-    // ============================================
+    let color: BeadColor?  // nil 表示新建颜色
 
-    let color: BeadColor?  // 要编辑的颜色，nil 表示新建
-
-    // ============================================
-    // 状态变量 - 类似于前端的 useState
-    // 使用 @State 包装，值变化时触发 UI 更新
-    // ============================================
-
-    @State private var code: String        // 色号
-    @State private var series: String      // 系列
-    @State private var hex: String         // 十六进制颜色
-    @State private var displayName: String // 显示名称
-    @State private var alias: String       // 别名
-    @State private var stockCount: Int    // 库存数量
+    @State private var code: String        // 色号（唯一用户可见字段）
+    @State private var series: String      // 系列（内部保留，不展示）
+    @State private var hex: String         // 十六进制颜色（内部保留，不展示）
+    @State private var displayName: String // 显示名称（内部保留，不展示）
+    @State private var alias: String       // 别名（内部保留，不展示）
+    @State private var stockCount: Int     // 库存数量
+    @State private var stockInput: String  // 库存输入框的文本
     @State private var note: String        // 备注
     @State private var enabled: Bool       // 是否启用
 
-    // ============================================
-    // 初始化方法 - 类似于前端的 useEffect / componentDidMount
-    // ============================================
-
     init(color: BeadColor?) {
         self.color = color
-        // 初始化表单值，如果有 color 则是编辑模式，否则是新建模式
+        let count = color?.stockCount ?? 1000
         _code = State(initialValue: color?.code ?? "")
         _series = State(initialValue: color?.series ?? "")
         _hex = State(initialValue: color?.hex ?? "#FFFFFF")
         _displayName = State(initialValue: color?.displayName ?? "")
         _alias = State(initialValue: color?.alias ?? "")
-        _stockCount = State(initialValue: color?.stockCount ?? 1000)
+        _stockCount = State(initialValue: count)
+        _stockInput = State(initialValue: "\(count)")
         _note = State(initialValue: color?.note ?? "")
         _enabled = State(initialValue: color?.enabled ?? true)
     }
 
-    // ============================================
-    // View 主体 - 相当于前端的 render / return JSX
-    // ============================================
-
     var body: some View {
         NavigationStack {
             Form {
-                // 颜色预览区域
-                Section {
-                    // 实时颜色预览 - 自动选择黑/白文字
-                    ZStack(alignment: .bottomLeading) {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(hex: hex) ?? .gray)
-                            .frame(height: 96)
-
-                        // 左下角显示 HEX 值，自动适配颜色亮度
-                        Text(hex.uppercased())
-                            .font(.title2.bold())
-                            .padding()
-                            .foregroundStyle(readableTextColor)
-                    }
-                }
-
-                // 基础信息表单
+                // 基础信息 — 只保留色号
+                // 系列/名称/别名/hex 在编辑器内不可修改
                 Section("基础信息") {
-                    // TextField 类似于前端的 <input> 或 <Form.Input>
                     TextField("色号，例如 A1", text: $code)
-                        .textInputAutocapitalization(.characters)  // 自动转大写
-
-                    TextField("系列，例如 A", text: $series)
                         .textInputAutocapitalization(.characters)
-
-                    TextField("HEX，例如 #FAF4C8", text: $hex)
-                        .textInputAutocapitalization(.characters)
-
-                    TextField("名称", text: $displayName)
-
-                    TextField("别名", text: $alias)
                 }
 
-                // 库存表单
+                // 库存 — 直接数字输入 + 快捷补豆按钮
+                // Stepper 步进 10 太慢，且大范围 Stepper 会卡
                 Section("库存") {
-                    // Stepper 类似于前端的数字输入框 + 加减按钮
-                    Stepper(value: $stockCount, in: 0...999_999, step: 10) {
-                        Text("\(stockCount.formatted()) 粒")
-                    }
-                    // 范围 0-999999，每次增减 10
-
+                    stockInputField
+                    quickButtons
                     Toggle("启用", isOn: $enabled)
-                    // Toggle 类似于前端的 Switch 开关组件
                 }
 
-                // 备注表单
+                // 备注
                 Section("备注") {
                     TextEditor(text: $note)
-                        .frame(minHeight: 120)
-                    // TextEditor 类似于前端的 <textarea> 多行文本框
+                        .frame(minHeight: 100)
                 }
             }
-            // NavigationStack 的标题栏配置
             .navigationTitle(color == nil ? "新增颜色" : "编辑颜色")
             .navigationBarTitleDisplayMode(.inline)
 
-            // 工具栏按钮
             .toolbar {
-                // 取消按钮
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
-                    // placement: .cancellationAction 通常在左边
                 }
 
-                // 保存按钮
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
-                        // disabled: 禁用条件，类似前端的 disabled={!isValid}
-                        .disabled(
-                            code.trimmingCharacters(in: .whitespaces).isEmpty ||
-                            series.trimmingCharacters(in: .whitespaces).isEmpty
-                        )
-                    // 色号和系列不能为空
+                        .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
 
-                // 删除按钮（仅编辑模式显示）
+                // 删除按钮仅编辑模式显示
                 if color != nil {
                     ToolbarItem(placement: .bottomBar) {
                         Button("删除", role: .destructive) { delete() }
-                        // role: .destructive 显示为红色警告样式
                     }
                 }
             }
@@ -149,60 +90,112 @@ struct ColorEditorView: View {
     }
 
     // ============================================
-    // 方法 - 类似于前端的 class methods 或工具函数
+    // 子视图组件
     // ============================================
 
-    // 保存数据
+    // 库存数字输入区域
+    private var stockInputField: some View {
+        HStack {
+            Text("数量")
+                .foregroundStyle(.secondary)
+            Spacer()
+            TextField("输入库存数量", text: $stockInput)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .font(.title3.weight(.bold))
+                .frame(minWidth: 80)
+                .onChange(of: stockInput) { _, newValue in
+                    // 过滤非数字字符
+                    let filtered = newValue.filter(\.isNumber)
+                    guard filtered != newValue else { return }
+                    stockInput = filtered
+                }
+            Text("粒")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    // 快捷补豆按钮组
+    private var quickButtons: some View {
+        VStack(spacing: 8) {
+            Text("快捷补豆")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 10) {
+                quickButton(-500, label: "-500", role: .destructive)
+                quickButton(-100, label: "-100", role: .destructive)
+                quickButton(-10, label: "-10", role: .destructive)
+
+                Spacer()
+
+                quickButton(10, label: "+10")
+                quickButton(100, label: "+100")
+                quickButton(500, label: "+500")
+            }
+        }
+    }
+
+    // 单个快捷按钮
+    private func quickButton(_ delta: Int, label: String, role: ButtonRole? = nil) -> some View {
+        Button(role: role) {
+            let newValue = max(0, stockCount + delta)
+            stockCount = newValue
+            stockInput = "\(newValue)"
+        } label: {
+            Text(label)
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(delta < 0 ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
+                .foregroundStyle(delta < 0 ? Color.red : Color.green)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(delta < 0 ? Color.red.opacity(0.3) : Color.green.opacity(0.3)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // ============================================
+    // 方法
+    // ============================================
+
     private func save() {
-        let now = Date()  // 获取当前时间
+        let now = Date()
 
         if let color {
-            // 编辑模式：更新现有数据
-            // 类似于前端的 Object.assign 或 spread 操作
+            // 编辑模式 — 只更新色号/库存/备注/启用状态
+            // hex/series/displayName/alias 是标准属性，不在编辑器中修改
             color.code = code.uppercased()
-            color.series = series.uppercased()
-            color.hex = hex.uppercased()
-            color.displayName = displayName.isEmpty ? code.uppercased() : displayName
-            color.alias = alias
             color.stockCount = stockCount
             color.note = note
             color.enabled = enabled
             color.updatedAt = now
         } else {
-            // 新建模式：创建新数据
+            // 新建模式 — 从色号自动推导系列
+            // 例如 "A1" → 系列 "A"，hex 默认白色
+            let derivedSeries = extractSeries(from: code)
             let newColor = BeadColor(
                 code: code.uppercased(),
-                series: series.uppercased(),
-                hex: hex.uppercased(),
-                displayName: displayName.isEmpty ? code.uppercased() : displayName,
-                alias: alias,
+                series: derivedSeries,
+                hex: "#FFFFFF",
+                displayName: code.uppercased(),
+                alias: "",
                 enabled: enabled,
                 note: note,
                 stockCount: stockCount,
                 createdAt: now,
                 updatedAt: now
             )
-            // 插入到数据库，类似前端的 db.create() 或 INSERT
             modelContext.insert(newColor)
         }
 
-        // 保存所有更改，类似前端的 db.save() 或 commit
         try? modelContext.save()
-
-        // 关闭弹窗，类似前端的 onClose()
         dismiss()
-    }
-
-    // 删除数据
-    // 计算颜色亮度，决定文字用黑色还是白色
-    private var readableTextColor: Color {
-        guard let rgb = RGB(hex: hex) else { return .primary }
-        return rgb.luminance > 0.56 ? .black.opacity(0.85) : .white
     }
 
     private func delete() {
         if let color {
-            // 从数据库删除，类似前端的 db.delete() 或 DELETE FROM
             modelContext.delete(color)
             try? modelContext.save()
         }
@@ -210,26 +203,14 @@ struct ColorEditorView: View {
     }
 }
 
-
 // ============================================
-// RGB - 颜色RGB结构体（用于计算颜色亮度）
+// 工具函数
 // ============================================
 
-private struct RGB {
-    let red: Double
-    let green: Double
-    let blue: Double
-
-    init?(hex: String) {
-        var value = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        if value.hasPrefix("#") { value.removeFirst() }
-        guard value.count == 6, let number = Int(value, radix: 16) else { return nil }
-        red = Double((number >> 16) & 0xFF) / 255
-        green = Double((number >> 8) & 0xFF) / 255
-        blue = Double(number & 0xFF) / 255
-    }
-
-    var luminance: Double {
-        0.299 * red + 0.587 * green + 0.114 * blue
-    }
+// 从色号提取系列前缀
+// 例如 "A1" → "A", "B22" → "B", "CustomColor" → "CustomColor"
+private func extractSeries(from code: String) -> String {
+    let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+    let letters = trimmed.prefix(while: \.isLetter)
+    return letters.isEmpty ? "未分组" : String(letters).uppercased()
 }

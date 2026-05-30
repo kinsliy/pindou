@@ -18,6 +18,7 @@
 		01A000000000000000000109 /* ImportSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000009 /* ImportSheetView.swift */; };
 		01A000000000000000000110 /* PlaceholderTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000010 /* PlaceholderTabView.swift */; };
 		01A000000000000000000111 /* ExportDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000011 /* ExportDocument.swift */; };
+		01A000000000000000000114 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000015 /* SettingsView.swift */; };
 		01A000000000000000000112 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000012 /* Assets.xcassets */; };
 		01A000000000000000000113 /* DefaultColorCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000014 /* DefaultColorCatalog.swift */; };
 		01A000000000000000000201 /* ColorImportServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000021 /* ColorImportServiceTests.swift */; };
@@ -48,6 +49,7 @@
 		01A000000000000000000012 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		01A000000000000000000013 /* PindouColors.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PindouColors.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01A000000000000000000014 /* DefaultColorCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultColorCatalog.swift; sourceTree = "<group>"; };
+		01A000000000000000000015 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		01A000000000000000000021 /* ColorImportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorImportServiceTests.swift; sourceTree = "<group>"; };
 		01A000000000000000000022 /* PindouColorsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PindouColorsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -144,6 +146,7 @@
 				01A000000000000000000008 /* ColorEditorView.swift */,
 				01A000000000000000000009 /* ImportSheetView.swift */,
 				01A000000000000000000010 /* PlaceholderTabView.swift */,
+				01A000000000000000000015 /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -268,6 +271,7 @@
 				01A000000000000000000109 /* ImportSheetView.swift in Sources */,
 				01A000000000000000000110 /* PlaceholderTabView.swift in Sources */,
 				01A000000000000000000111 /* ExportDocument.swift in Sources */,
+				01A000000000000000000114 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
