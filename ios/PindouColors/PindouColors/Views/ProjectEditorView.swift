@@ -203,7 +203,7 @@ struct ProjectEditorView: View {
     // 图片选择行
     private var imageRow: some View {
         HStack(spacing: 14) {
-            // 缩略图
+            // 缩略图区域：始终显示当前图片或占位符
             if let imageData = selectedImageData,
                let uiImage = UIImage(data: imageData) {
                 Image(uiImage: uiImage)
@@ -224,44 +224,50 @@ struct ProjectEditorView: View {
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.12)))
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
+                // 选择/更换图片按钮 — 始终可见
                 PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                    Text(selectedImageData == nil ? "选择图片" : "更换图片")
+                    Label(selectedImageData == nil ? "选择图片" : "更换图片",
+                          systemImage: selectedImageData == nil ? "photo.on.rectangle" : "arrow.triangle.2.circlepath")
                         .font(.subheadline.weight(.medium))
                 }
 
-                if let imageData = selectedImageData {
-                    // 已选图片：显示识别按钮
+                if selectedImageData != nil {
+                    // 已选图片时显示识别和清除按钮
                     Button {
                         analyzeColors()
                     } label: {
                         HStack(spacing: 4) {
                             if isAnalyzing {
                                 ProgressView()
-                                    .scaleEffect(0.7)
+                                    .scaleEffect(0.8)
                             }
-                            Text(isAnalyzing ? "识别中..." : "识别颜色")
-                                .font(.caption)
+                            Label(isAnalyzing ? "识别中..." : "重新识别颜色",
+                                  systemImage: isAnalyzing ? "" : "wand.and.stars")
+                                .font(.subheadline)
                         }
                     }
                     .disabled(isAnalyzing)
 
-                    // 清除按钮
                     Button(role: .destructive) {
                         selectedImageData = nil
                         thumbnailData = nil
                         detectedUsages = []
                     } label: {
-                        Text("清除")
-                            .font(.caption)
+                        Label("清除图片", systemImage: "trash")
+                            .font(.subheadline)
                     }
                 }
             }
         }
         .padding(.vertical, 4)
+        // 监听图片选择：每次选择新图片时处理
+        // 注意：PhotosPicker 选择后会自动重置 selectedPhotoItem，
+        // 再次选择同一张图时不会触发 onChange，所以不会"删掉"图片
         .onChange(of: selectedPhotoItem) { _, newItem in
+            guard let newItem else { return }
             Task {
-                guard let data = try? await newItem?.loadTransferable(type: Data.self) else { return }
+                guard let data = try? await newItem.loadTransferable(type: Data.self) else { return }
                 selectedImageData = data
                 if let uiImage = UIImage(data: data) {
                     thumbnailData = await generateThumbnail(uiImage)

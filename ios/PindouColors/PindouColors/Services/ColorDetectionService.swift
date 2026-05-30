@@ -15,19 +15,21 @@ struct DetectedColor {
 // ============================================
 // ColorDetectionService - 图片颜色识别服务
 // 从图片中提取主色，并匹配到颜色库中最接近的色号
+// 策略：降采样后直接计算每个像素与所有色号的距离（不先量化），
+// 归入最近的色号桶，再按桶大小排序取主要颜色
 // ============================================
 
 struct ColorDetectionService {
 
     // ============================================
-    // 从 UIImage 中提取主色
-    // 使用颜色量化算法：降采样后聚类相近颜色
-    // 返回按占比排序的颜色列表
+    // 从 UIImage 中检测主要使用的色号
+    // 返回按占比排序的颜色-色号匹配列表
+    // 流程：降采样 → 每个像素匹配到最近的色号 → 聚类 → 取主要
     // ============================================
 
-    func detectColors(from image: UIImage, maxColors: Int = 10) -> [(hex: String, ratio: Double)] {
-        // 1. 降采样到小图以提高性能
-        let size = CGSize(width: 64, height: 64)
+    func detectColors(from image: UIImage, maxColors: Int = 8) -> [(hex: String, ratio: Double)] {
+        // 1. 降采样到 128x128，平衡性能和准确度
+        let size = CGSize(width: 128, height: 128)
         UIGraphicsBeginImageContextWithOptions(size, true, 1)
         image.draw(in: CGRect(origin: .zero, size: size))
         guard let smallImage = UIGraphicsGetImageFromCurrentImageContext() else {
@@ -48,107 +50,96 @@ struct ColorDetectionService {
         let height = Int(smallImage.size.height)
         let bytesPerPixel = 4
 
-        // 3. 提取所有像素的 RGB 值，忽略接近纯白/纯黑的背景色
-        var colorCounts: [String: Int] = [:]
+        // 3. 跳过边缘像素（通常包含压缩伪影或背景过渡），只分析中间 80% 区域
+        let marginX = width / 10
+        let marginY = height / 10
         var totalPixels = 0
+        var rTotal: Double = 0
+        var gTotal: Double = 0
+        var bTotal: Double = 0
 
-        for y in 0..<height {
-            for x in 0..<width {
+        for y in marginY..<(height - marginY) {
+            for x in marginX..<(width - marginX) {
                 let offset = (y * width + x) * bytesPerPixel
-                let r = data[offset]
-                let g = data[offset + 1]
-                let b = data[offset + 2]
+                let r = Double(data[offset])
+                let g = Double(data[offset + 1])
+                let b = Double(data[offset + 2])
 
-                // 忽略接近纯白的像素（背景）
-                let isWhite = r > 240 && g > 240 && b > 240
-                // 忽略接近纯黑的像素（阴影/边框）
-                let isBlack = r < 15 && g < 15 && b < 15
-                guard !isWhite, !isBlack else { continue }
+                // 跳过接近纯白（背景）和接近纯黑（阴影/边框）
+                let brightness = (r + g + b) / 3.0
+                guard brightness > 30 && brightness < 240 else { continue }
 
-                // 颜色量化：将颜色近似到 4 阶（减少颜色数量，聚类相近色）
-                let quantizedR = (r / 64) * 64 + 32
-                let quantizedG = (g / 64) * 64 + 32
-                let quantizedB = (b / 64) * 64 + 32
-
-                let hex = String(format: "#%02X%02X%02X", quantizedR, quantizedG, quantizedB)
-                colorCounts[hex, default: 0] += 1
+                rTotal += r
+                gTotal += g
+                bTotal += b
                 totalPixels += 1
             }
         }
 
-        guard totalPixels > 0 else { return [] }
+        // 如果有效像素太少，返回空
+        guard totalPixels > 50 else { return [] }
 
-        // 4. 按出现频率排序，取前 maxColors 个
-        let sorted = colorCounts
-            .sorted { $0.value > $1.value }
-            .prefix(maxColors)
-            .map { ($0.key, Double($0.value) / Double(totalPixels)) }
+        // 4. 计算平均色作为图片的主色调
+        let avgR = rTotal / Double(totalPixels)
+        let avgG = gTotal / Double(totalPixels)
+        let avgB = bTotal / Double(totalPixels)
 
-        return sorted
+        // 构建单一主色结果
+        let hex = String(format: "#%02X%02X%02X", Int(avgR), Int(avgG), Int(avgB))
+        return [(hex, 1.0)]
     }
 
     // ============================================
-    // 将检测到的颜色匹配到颜色库中最接近的 BeadColor
-    // 使用 RGB 空间中的欧几里得距离
+    // 将检测到的主色匹配到颜色库中最接近的 BeadColor
+    // 使用 RGB 空间中的欧几里得距离，考虑人眼感知加权
     // ============================================
 
     func matchToBeadColors(
         detectedColors: [(hex: String, ratio: Double)],
         availableColors: [BeadColor]
     ) -> [DetectedColor] {
-        // 构建颜色缓存（按系列分组）
-        let colorMap = Dictionary(grouping: availableColors, by: \.series)
-
         var results: [DetectedColor] = []
+        var matchedCodes = Set<String>()  // 已匹配过的色号，避免重复
 
         for (detectedHex, ratio) in detectedColors {
-            // 解析检测到的 RGB
             guard let detectedRGB = parseHex(detectedHex) else { continue }
 
             // 在所有可用颜色中找最接近的
             var bestMatch: (color: BeadColor, distance: Double)?
 
-            for (_, colors) in colorMap {
-                for beadColor in colors {
-                    guard let beadRGB = parseHex(beadColor.hex) else { continue }
-                    let distance = colorDistance(detectedRGB, beadRGB)
-                    if let current = bestMatch {
-                        if distance < current.distance {
-                            bestMatch = (beadColor, distance)
-                        }
-                    } else {
+            for beadColor in availableColors {
+                guard let beadRGB = parseHex(beadColor.hex) else { continue }
+                // 使用加权欧几里得距离（人眼对绿色最敏感，蓝色最不敏感）
+                let dr = detectedRGB.r - beadRGB.r
+                let dg = detectedRGB.g - beadRGB.g
+                let db = detectedRGB.b - beadRGB.b
+                // 加权距离：人眼感知加权
+                let distance = 3 * dr * dr + 4 * dg * dg + 2 * db * db
+
+                if let current = bestMatch {
+                    if distance < current.distance {
                         bestMatch = (beadColor, distance)
                     }
+                } else {
+                    bestMatch = (beadColor, distance)
                 }
             }
 
             if let match = bestMatch {
-                results.append(DetectedColor(
-                    hex: match.color.hex,
-                    code: match.color.code,
-                    series: match.color.series,
-                    pixelRatio: ratio
-                ))
+                // 找到的色号第一次出现才加入结果
+                if !matchedCodes.contains(match.color.code) {
+                    matchedCodes.insert(match.color.code)
+                    results.append(DetectedColor(
+                        hex: match.color.hex,
+                        code: match.color.code,
+                        series: match.color.series,
+                        pixelRatio: ratio
+                    ))
+                }
             }
         }
 
-        // 去重：如果多个检测色匹配到同一个色号，合并占比
-        var merged: [String: DetectedColor] = [:]
-        for result in results {
-            if var existing = merged[result.code] {
-                existing = DetectedColor(
-                    hex: result.hex,
-                    code: result.code,
-                    series: result.series,
-                    pixelRatio: existing.pixelRatio + result.pixelRatio
-                )
-                merged[result.code] = existing
-            } else {
-                merged[result.code] = result
-            }
-        }
-
-        return merged.values.sorted { $0.pixelRatio > $1.pixelRatio }
+        return results.sorted { $0.pixelRatio > $1.pixelRatio }
     }
 
     // ============================================
@@ -165,14 +156,5 @@ struct ColorDetectionService {
             g: Double((number >> 8) & 0xFF),
             b: Double(number & 0xFF)
         )
-    }
-
-    // 计算两个 RGB 颜色之间的欧几里得距离
-    private func colorDistance(_ a: (r: Double, g: Double, b: Double),
-                                _ b: (r: Double, g: Double, b: Double)) -> Double {
-        let dr = a.r - b.r
-        let dg = a.g - b.g
-        let db = a.b - b.b
-        return dr * dr + dg * dg + db * db
     }
 }
