@@ -15,12 +15,8 @@ struct ContentView: View {
                     Label("豆仓", systemImage: "shippingbox")
                 }
 
-            // 图纸册 - 占位，后续接图纸和作品配色
-            PlaceholderTabView(
-                title: "图纸册",
-                systemImage: "book.pages",
-                message: "后续可接图纸和作品配色。"
-            )
+            // 图纸册 - 图纸列表页
+            ProjectListView()
             .tabItem {
                 Label("图纸册", systemImage: "book.pages")
             }

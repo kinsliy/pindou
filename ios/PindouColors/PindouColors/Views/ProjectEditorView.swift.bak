@@ -1,0 +1,400 @@
+import SwiftData
+import SwiftUI
+import PhotosUI
+
+// ============================================
+// ProjectEditorMode - 编辑器模式
+// ============================================
+
+enum ProjectEditorMode {
+    case create   // 新建图纸
+    case edit     // 编辑已有图纸
+}
+
+// ============================================
+// ProjectEditorView - 图纸编辑器
+// 支持上传图片、自动识别颜色、手动调整用量
+// ============================================
+
+struct ProjectEditorView: View {
+    // ============================================
+    // SwiftData 依赖注入
+    // ============================================
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    // 获取所有颜色用于匹配
+    @Query(sort: [SortDescriptor(\BeadColor.series), SortDescriptor(\BeadColor.sortOrder)])
+    private var allColors: [BeadColor]
+
+    // ============================================
+    // Props
+    // ============================================
+
+    let mode: ProjectEditorMode
+    var existingProject: Project?  // 编辑模式时传入
+
+    // ============================================
+    // 状态变量
+    // ============================================
+
+    @State private var name: String = ""
+    @State private var note: String = ""
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedImageData: Data?
+    @State private var thumbnailData: Data?
+    @State private var isAnalyzing = false
+    @State private var detectedUsages: [DetectedUsage] = []
+    @State private var alertMessage: String?
+
+    // ============================================
+    // 检测到的颜色用量（编辑用）
+    // ============================================
+
+    struct DetectedUsage: Identifiable {
+        let id = UUID()
+        var beadColor: BeadColor?
+        var count: String  // 字符串输入，方便编辑
+        var isAutoDetected: Bool
+    }
+
+    // ============================================
+    // 颜色识别服务
+    // ============================================
+
+    private let detectionService = ColorDetectionService()
+
+    // ============================================
+    // View 主体
+    // ============================================
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // 图片选择
+                    imagePickerSection
+
+                    // 图纸名称
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("图纸名称")
+                            .font(.headline)
+                            .foregroundStyle(.black.opacity(0.7))
+                        TextField("输入图纸名称", text: $name)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    // 颜色用量列表
+                    colorUsageSection
+
+                    // 备注
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("备注（可选）")
+                            .font(.headline)
+                            .foregroundStyle(.black.opacity(0.7))
+                        TextEditor(text: $note)
+                            .frame(minHeight: 80)
+                            .padding(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.2)))
+                    }
+                }
+                .padding(18)
+            }
+            .background(Color(red: 0.97, green: 0.98, blue: 1.0))
+            .navigationTitle(mode == .create ? "新建图纸" : "编辑图纸")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") { saveProject() }
+                        .disabled(name.isEmpty || detectedUsages.isEmpty)
+                }
+            }
+            .alert("提示", isPresented: Binding(
+                get: { alertMessage != nil },
+                set: { _ in alertMessage = nil }
+            )) {
+                Button("好", role: .cancel) {}
+            } message: {
+                Text(alertMessage ?? "")
+            }
+            .onAppear {
+                // 编辑模式：加载已有数据
+                if let project = existingProject {
+                    name = project.name
+                    note = project.note
+                    selectedImageData = project.imageData
+                    thumbnailData = project.thumbnailData
+                    detectedUsages = project.colorUsages.map {
+                        DetectedUsage(beadColor: $0.color, count: "\($0.count)", isAutoDetected: false)
+                    }
+                }
+            }
+        }
+    }
+
+    // ============================================
+    // 子视图
+    // ============================================
+
+    // 图片选择区域
+    private var imagePickerSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("图纸图片")
+                .font(.headline)
+                .foregroundStyle(.black.opacity(0.7))
+
+            if let imageData = selectedImageData,
+               let uiImage = UIImage(data: imageData) {
+                // 已选图片
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 300)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.black.opacity(0.15)))
+
+                HStack(spacing: 12) {
+                    // 重新选择
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        Label("重选图片", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.subheadline)
+                    }
+
+                    // 识别颜色
+                    Button {
+                        analyzeColors()
+                    } label: {
+                        Label(isAnalyzing ? "识别中..." : "识别颜色", systemImage: "wand.and.stars")
+                            .font(.subheadline)
+                    }
+                    .disabled(isAnalyzing)
+
+                    // 清除图片
+                    Button(role: .destructive) {
+                        selectedImageData = nil
+                        thumbnailData = nil
+                        detectedUsages = []
+                    } label: {
+                        Label("清除", systemImage: "trash")
+                            .font(.subheadline)
+                    }
+                }
+            } else {
+                // 未选图片：显示选择器
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(.black.opacity(0.2), lineWidth: 2)
+                            .frame(height: 200)
+                        VStack(spacing: 8) {
+                            Image(systemName: "photo.badge.plus")
+                                .font(.system(size: 40))
+                            Text("点击选择图片")
+                                .font(.headline)
+                        }
+                        .foregroundStyle(.black.opacity(0.4))
+                    }
+                }
+            }
+        }
+        // 监听图片选择
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            Task {
+                guard let data = try? await newItem?.loadTransferable(type: Data.self) else { return }
+                selectedImageData = data
+                // 生成缩略图
+                if let uiImage = UIImage(data: data) {
+                    thumbnailData = await generateThumbnail(uiImage)
+                }
+                // 选择新图片后自动识别颜色
+                if let uiImage = UIImage(data: data) {
+                    await autoDetectColors(from: uiImage)
+                }
+            }
+        }
+    }
+
+    // 颜色用量列表
+    private var colorUsageSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("使用颜色")
+                    .font(.headline)
+                    .foregroundStyle(.black.opacity(0.7))
+                Spacer()
+                if !detectedUsages.isEmpty {
+                    Text("\(detectedUsages.count) 色")
+                        .font(.subheadline)
+                        .foregroundStyle(.black.opacity(0.5))
+                }
+            }
+
+            if detectedUsages.isEmpty {
+                Text("选择图片后自动识别颜色，或手动添加")
+                    .font(.subheadline)
+                    .foregroundStyle(.black.opacity(0.4))
+                    .padding(.vertical, 20)
+                    .frame(maxWidth: .infinity)
+            } else {
+                // 颜色用量行
+                ForEach(Array(detectedUsages.enumerated()), id: \.element.id) { index, usage in
+                    HStack(spacing: 12) {
+                        // 色块
+                        if let color = usage.beadColor {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(color.color)
+                                .frame(width: 40, height: 40)
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.black.opacity(0.15)))
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(color.code)
+                                    .font(.subheadline.weight(.medium))
+                                Text(color.series)
+                                    .font(.caption)
+                                    .foregroundStyle(.black.opacity(0.5))
+                            }
+
+                            Spacer()
+
+                            // 用量输入
+                            HStack(spacing: 4) {
+                                TextField("0", text: $detectedUsages[index].count)
+                                    .keyboardType(.numberPad)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 60)
+                                    .multilineTextAlignment(.center)
+                                Text("粒")
+                                    .font(.caption)
+                                    .foregroundStyle(.black.opacity(0.5))
+                            }
+
+                            // 自动识别标记
+                            if usage.isAutoDetected {
+                                Image(systemName: "wand.and.stars")
+                                    .font(.caption)
+                                    .foregroundStyle(.indigo)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                // 手动添加颜色按钮
+                Button {
+                    detectedUsages.append(DetectedUsage(beadColor: nil, count: "0", isAutoDetected: false))
+                } label: {
+                    Label("添加颜色", systemImage: "plus.circle")
+                        .font(.subheadline)
+                }
+            }
+        }
+    }
+
+    // ============================================
+    // 方法
+    // ============================================
+
+    // 生成缩略图
+    private func generateThumbnail(_ image: UIImage) async -> Data? {
+        let size = CGSize(width: Project.thumbnailSize, height: Project.thumbnailSize * image.size.height / image.size.width)
+        UIGraphicsBeginImageContextWithOptions(size, true, 1)
+        image.draw(in: CGRect(origin: .zero, size: size))
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result?.jpegData(compressionQuality: 0.6)
+    }
+
+    // 自动识别颜色（异步）
+    private func autoDetectColors(from image: UIImage) async {
+        isAnalyzing = true
+        defer { isAnalyzing = false }
+
+        let detected = detectionService.detectColors(from: image)
+        let matched = detectionService.matchToBeadColors(
+            detectedColors: detected,
+            availableColors: allColors
+        )
+
+        detectedUsages = matched.map { detectedColor in
+            DetectedUsage(
+                beadColor: allColors.first { $0.code == detectedColor.code },
+                count: "0",
+                isAutoDetected: true
+            )
+        }
+    }
+    // 分析颜色（同步调用用 Task）
+
+
+    private func analyzeColors() {
+        guard let imageData = selectedImageData,
+              let uiImage = UIImage(data: imageData) else { return }
+
+        isAnalyzing = true
+        Task {
+            let detected = detectionService.detectColors(from: uiImage)
+            let matched = detectionService.matchToBeadColors(
+                detectedColors: detected,
+                availableColors: allColors
+            )
+
+            detectedUsages = matched.map { detected in
+                DetectedUsage(
+                    beadColor: allColors.first { $0.code == detected.code },
+                    count: "0",
+                    isAutoDetected: true
+                )
+            }
+            isAnalyzing = false
+        }
+    }
+
+    // 保存图纸
+    private func saveProject() {
+        // 1. 构建颜色用量列表
+        var usages: [ProjectColorUsage] = []
+        for usage in detectedUsages {
+            guard let beadColor = usage.beadColor,
+                  let count = Int(usage.count), count > 0 else { continue }
+            let colorUsage = ProjectColorUsage(color: beadColor, count: count)
+            usages.append(colorUsage)
+        }
+
+        guard !usages.isEmpty else {
+            alertMessage = "请至少添加一种颜色的用量"
+            return
+        }
+
+        // 2. 创建或更新 Project
+        if mode == .create {
+            let project = Project(
+                name: name,
+                status: .notStarted,
+                note: note,
+                imageData: selectedImageData,
+                thumbnailData: thumbnailData,
+                colorUsages: usages
+            )
+            modelContext.insert(project)
+        } else if let project = existingProject {
+            project.name = name
+            project.note = note
+            project.imageData = selectedImageData
+            project.thumbnailData = thumbnailData
+            project.updatedAt = Date()
+
+            // 删除旧的 colorUsages，插入新的
+            for usage in project.colorUsages {
+                modelContext.delete(usage)
+            }
+            project.colorUsages = usages
+        }
+
+        // 3. 保存并关闭
+        try? modelContext.save()
+        dismiss()
+    }
+}

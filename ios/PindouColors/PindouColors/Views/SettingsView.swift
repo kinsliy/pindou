@@ -35,6 +35,8 @@ struct SettingsView: View {
     // ============================================
 
     private let backupService = BackupService()
+    private let seedService = DefaultColorSeedService() // 默认颜色补齐服务
+
 
     // ============================================
     // View 主体
@@ -68,6 +70,26 @@ struct SettingsView: View {
                         Label("导出 CSV", systemImage: "tablecells")
                             .foregroundStyle(.primary)
                     }
+
+                    // 补齐 291 色（从豆仓移到设置）
+                    Button {
+                        Task {
+                            do {
+                                let result = try seedService.insertMissingDefaults(
+                                    into: modelContext,
+                                    existingColors: colors
+                                )
+                                alertMessage = "默认 291 色已补齐：新增 \(result.inserted)，保留已有 \(result.skipped)"
+                            } catch {
+                                alertMessage = error.localizedDescription
+                            }
+                        }
+                    } label: {
+                        Label("补齐 291 色", systemImage: "sparkles.rectangle.stack")
+                            .foregroundStyle(.primary)
+                    }
+
+
                 }
 
                 // 数据信息

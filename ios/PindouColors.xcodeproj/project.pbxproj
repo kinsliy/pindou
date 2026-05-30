@@ -19,6 +19,12 @@
 		01A000000000000000000110 /* PlaceholderTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000010 /* PlaceholderTabView.swift */; };
 		01A000000000000000000111 /* ExportDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000011 /* ExportDocument.swift */; };
 		01A000000000000000000114 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000015 /* SettingsView.swift */; };
+		01A000000000000000000115 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000023 /* Project.swift */; };
+		01A000000000000000000116 /* ProjectColorUsage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000024 /* ProjectColorUsage.swift */; };
+		01A000000000000000000117 /* ColorDetectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000025 /* ColorDetectionService.swift */; };
+		01A000000000000000000118 /* ProjectListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000026 /* ProjectListView.swift */; };
+		01A000000000000000000119 /* ProjectEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000027 /* ProjectEditorView.swift */; };
+		01A000000000000000000120 /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000028 /* ProjectDetailView.swift */; };
 		01A000000000000000000112 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000012 /* Assets.xcassets */; };
 		01A000000000000000000113 /* DefaultColorCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000014 /* DefaultColorCatalog.swift */; };
 		01A000000000000000000201 /* ColorImportServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A000000000000000000021 /* ColorImportServiceTests.swift */; };
@@ -51,6 +57,12 @@
 		01A000000000000000000014 /* DefaultColorCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultColorCatalog.swift; sourceTree = "<group>"; };
 		01A000000000000000000015 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		01A000000000000000000021 /* ColorImportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorImportServiceTests.swift; sourceTree = "<group>"; };
+		01A000000000000000000023 /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
+		01A000000000000000000024 /* ProjectColorUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectColorUsage.swift; sourceTree = "<group>"; };
+		01A000000000000000000025 /* ColorDetectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorDetectionService.swift; sourceTree = "<group>"; };
+		01A000000000000000000026 /* ProjectListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectListView.swift; sourceTree = "<group>"; };
+		01A000000000000000000027 /* ProjectEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectEditorView.swift; sourceTree = "<group>"; };
+		01A000000000000000000028 /* ProjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDetailView.swift; sourceTree = "<group>"; };
 		01A000000000000000000022 /* PindouColorsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PindouColorsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -124,6 +136,8 @@
 			isa = PBXGroup;
 			children = (
 				01A000000000000000000003 /* BeadColor.swift */,
+				01A000000000000000000023 /* Project.swift */,
+				01A000000000000000000024 /* ProjectColorUsage.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -134,6 +148,7 @@
 				01A000000000000000000004 /* ColorImportService.swift */,
 				01A000000000000000000005 /* BackupService.swift */,
 				01A000000000000000000014 /* DefaultColorCatalog.swift */,
+				01A000000000000000000025 /* ColorDetectionService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -147,6 +162,9 @@
 				01A000000000000000000009 /* ImportSheetView.swift */,
 				01A000000000000000000010 /* PlaceholderTabView.swift */,
 				01A000000000000000000015 /* SettingsView.swift */,
+				01A000000000000000000026 /* ProjectListView.swift */,
+				01A000000000000000000027 /* ProjectEditorView.swift */,
+				01A000000000000000000028 /* ProjectDetailView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -272,6 +290,13 @@
 				01A000000000000000000110 /* PlaceholderTabView.swift in Sources */,
 				01A000000000000000000111 /* ExportDocument.swift in Sources */,
 				01A000000000000000000114 /* SettingsView.swift in Sources */,
+				01A000000000000000000115 /* Project.swift in Sources */,
+				01A000000000000000000116 /* ProjectColorUsage.swift in Sources */,
+				01A000000000000000000117 /* ColorDetectionService.swift in Sources */,
+				01A000000000000000000118 /* ProjectListView.swift in Sources */,
+				01A000000000000000000119 /* ProjectEditorView.swift in Sources */,
+				01A000000000000000000120 /* ProjectDetailView.swift in Sources */,
+
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

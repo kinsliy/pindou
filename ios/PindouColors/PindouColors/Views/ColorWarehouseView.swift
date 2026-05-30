@@ -14,6 +14,30 @@ enum ColorSortMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+
+// ============================================
+// ColorMode - 颜色范围模式枚举
+// 221 色基础版（A~M）或 291 色完整版（全部系列）
+// ============================================
+
+enum ColorMode: String, CaseIterable, Identifiable {
+    case basic = "221色 基础版"
+    case full = "291色 完整版"
+
+    var id: String { rawValue }
+
+    // 221 色模式允许的系列（A~M 共9个系列）
+    var allowedSeries: [String] {
+        switch self {
+        case .basic:
+            return ["A", "B", "C", "D", "E", "F", "G", "H", "M"]
+        case .full:
+            return []  // 空数组 = 不过滤，显示全部
+        }
+    }
+
+}
+
 // ============================================
 // ColorWarehouseView - 豆仓（颜色仓库）主页面
 // ============================================
@@ -38,6 +62,8 @@ struct ColorWarehouseView: View {
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool  // 搜索框焦点，用于控制键盘收起
     @State private var selectedSeries = "全部"
+    @State private var colorMode: ColorMode = .full
+
     @State private var sortMode: ColorSortMode = .default
     @State private var showsGrid = true
     @State private var editingColor: BeadColor?
@@ -105,6 +131,8 @@ struct ColorWarehouseView: View {
                     header
                     summaryBand
                     searchField
+                    colorModePicker
+
                     seriesChips
                     toolbar
                     groupedContent
@@ -188,12 +216,55 @@ struct ColorWarehouseView: View {
             }
         }
     }
+    // 系列筛选标签横向滚动区域
+    // ============================================
+    // colorModePicker - 221色/291色切换按钮
+    // 仿网站设计：两个并排的胶囊按钮
+    // ============================================
+
+    private var colorModePicker: some View {
+        HStack(spacing: 0) {
+            ForEach(ColorMode.allCases) { mode in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        colorMode = mode
+                        // 切换模式时重置系列筛选
+                        selectedSeries = "全部"
+                    }
+                } label: {
+                    VStack(spacing: 2) {
+                        Text(mode.rawValue)
+                            .font(.headline.weight(.bold))
+                        Text(mode == .basic ? "A~M 共9系列" : "含P/Q/R/T/Y/ZG共15系列")
+                            .font(.caption2)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(colorMode == mode ? Color.indigo : Color.white)
+                    .foregroundStyle(colorMode == mode ? Color.white : Color.black.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+
+                // 在两个按钮之间加分隔线
+                if mode != ColorMode.allCases.last {
+                    Divider()
+                        .frame(width: 1)
+                        .background(Color.black.opacity(0.15))
+                }
+            }
+        }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.black.opacity(0.2)))
+    }
+
 
     // 系列筛选标签横向滚动区域
+
     private var seriesChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                chip("slider.horizontal.3", "全部", isActive: selectedSeries == "全部") {
+                chip("slider.horizontal.3", "全部 (\(filteredCount))", isActive: selectedSeries == "全部") {
                     selectedSeries = "全部"
                 }
                 ForEach(series, id: \.self) { item in
@@ -206,8 +277,8 @@ struct ColorWarehouseView: View {
         }
     }
 
-    // 工具栏（排序、补齐按钮、视图切换）
-    // 导入导出已移除 — 移到"设置"tab
+    // 工具栏（排序、视图切换）
+    // 补齐按钮和导入导出已移除 — 移到"设置"tab
     private var toolbar: some View {
         HStack(spacing: 12) {
             // 排序菜单
@@ -220,23 +291,6 @@ struct ColorWarehouseView: View {
             } label: {
                 Label(sortMode.rawValue, systemImage: "arrow.up.arrow.down")
             }
-            .buttonStyle(PillButtonStyle(active: true))
-
-            // 补齐 291 色按钮
-            Button {
-                Task { await seedMissingDefaultColors(showAlert: true) }
-            } label: {
-                Text(isSyncing ? "准备中" : "补齐 291 色")
-                    .font(.headline)
-                    .foregroundStyle(.indigo)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 13)
-                    .background(.white)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(.indigo.opacity(0.5)))
-            }
-            .buttonStyle(.plain)
-            .disabled(isSyncing)
 
             Spacer()
 
@@ -297,7 +351,7 @@ struct ColorWarehouseView: View {
                 ContentUnavailableView(
                     "暂无颜色",
                     systemImage: "paintpalette",
-                    description: Text("默认 291 色会自动准备，也可以手动新增。")
+                    description: Text(colorMode == .basic ? "当前为 221 色模式，默认 A~M 系列会自动准备。" : "默认 291 色会自动准备，也可以手动新增。")
                 )
                 .frame(maxWidth: .infinity)
                 .padding(.top, 60)
@@ -332,8 +386,21 @@ struct ColorWarehouseView: View {
 
     // 获取所有系列列表
     private var series: [String] {
-        Array(Set(colors.map(\.series))).sorted()
+        let allSeries = Set(colors.map(\.series))
+        if colorMode == .full {
+            return allSeries.sorted()
+        }
+        return allSeries.filter { colorMode.allowedSeries.contains($0) }.sorted()
     }
+
+    // 当前模式下的颜色总数（用于全部标签的显示）
+    private var filteredCount: Int {
+        colors.filter { color in
+            let matchesMode = colorMode == .full || colorMode.allowedSeries.contains(color.series)
+            return matchesMode
+        }.count
+    }
+
 
     // 过滤后的颜色列表
     private var filteredColors: [BeadColor] {
@@ -342,13 +409,14 @@ struct ColorWarehouseView: View {
             .lowercased()
 
         var result = colors.filter { color in
+            let matchesMode = colorMode == .full || colorMode.allowedSeries.contains(color.series)
             let matchesSeries = selectedSeries == "全部" || color.series == selectedSeries
             let matchesSearch = query.isEmpty ||
                 color.code.lowercased().contains(query) ||
                 color.hex.lowercased().contains(query) ||
                 color.displayName.lowercased().contains(query) ||
                 color.alias.lowercased().contains(query)
-            return matchesSeries && matchesSearch
+            return matchesMode && matchesSeries && matchesSearch
         }
 
         switch sortMode {
@@ -375,7 +443,7 @@ struct ColorWarehouseView: View {
 
     // 计算总库存
     private var totalStock: Int {
-        colors.reduce(0) { $0 + $1.stockCount }
+        filteredColors.reduce(0) { $0 + $1.stockCount }
     }
 
     // ============================================

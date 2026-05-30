@@ -10,38 +10,9 @@ import SwiftUI
 @main
 struct PindouColorsApp: App {
     // ============================================
-    // ModelContainer - SwiftData 容器
-    // 类似于前端的数据库连接池或 Redux Store
-    // 整个应用共享同一个数据容器
-    // ============================================
-
-    var sharedModelContainer: ModelContainer = {
-        // Schema 定义数据库表结构
-        // 类似于前端的数据库 schema 定义或 TypeORM 实体
-        let schema = Schema([BeadColor.self])
-
-        // ModelConfiguration 数据库配置
-        // isStoredInMemoryOnly: false 表示数据持久化存储
-        let configuration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: false
-        )
-
-        do {
-            // 创建容器，类似前端的 initDatabase()
-            return try ModelContainer(
-                for: schema,
-                configurations: [configuration]
-            )
-        } catch {
-            // 数据库创建失败，应用崩溃
-            // 类似于前端的 console.error + process.exit(1)
-            fatalError("Could not create SwiftData container: \(error)")
-        }
-    }()
-
-    // ============================================
     // App 主体 - 相当于前端的 App 组件
+    // 使用 SwiftUI 的 .modelContainer(for:) 自动创建容器
+    // 类似于前端的 <Provider store={store}>
     // ============================================
 
     var body: some Scene {
@@ -51,9 +22,8 @@ struct PindouColorsApp: App {
             // ContentView 是根视图组件
             ContentView()
         }
-        // modelContainer 将数据库注入到视图层级
-        // 类似于前端的 <Provider store={store}>
-        // 这样所有子视图都可以通过 @Environment(\.modelContext) 访问数据库
-        .modelContainer(sharedModelContainer)
+        // modelContainer 自动创建并注入 SwiftData 容器
+        // 新模型（Project、ProjectColorUsage）会自动迁移
+        .modelContainer(for: [BeadColor.self, Project.self, ProjectColorUsage.self])
     }
 }
